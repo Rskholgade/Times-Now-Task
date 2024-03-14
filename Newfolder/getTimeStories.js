@@ -1,6 +1,5 @@
 const http = require('http');
 const https = require('https');
-const cheerio = require('cheerio'); // Added Cheerio
 
 const TIME_URL = 'https://time.com';
 
@@ -23,24 +22,19 @@ function fetchHTML(url) {
     });
 }
 
-// Function to parse HTML and extract latest stories
+// Function to parse HTML and extract latest stories without Cheerio
 function extractLatestStories(html) {
-    try {
-        const $ = cheerio.load(html);
-        const stories = [];
+    const storyRegex = /<li class="latest-stories__item">.*?<a href="([^"]+)">(.*?)<\/a>.*?<\/li>/gs;
+    let match;
+    let stories = [];
 
-        $('div.partial.latest-stories ul li').each((index, element) => {
-            const title = $(element).find('h3.latest-stories__item-headline').text().trim();
-            const link = $(element).find('a').attr('href');
-            if (title && link) {
-                stories.push({ title, link });
-            }
-        });
-
-        return stories;
-    } catch (error) {
-        throw error;
+    while ((match = storyRegex.exec(html)) !== null) {
+        const link = match[1];
+        const title = match[2].trim(); // Trim any leading/trailing whitespace
+        stories.push({ title, link });
     }
+
+    return stories;
 }
 
 // Create HTTP server to serve API
