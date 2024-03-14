@@ -1,5 +1,6 @@
 const http = require('http');
 const https = require('https');
+const cheerio = require('cheerio'); // Added Cheerio
 
 const TIME_URL = 'https://time.com';
 
@@ -14,7 +15,6 @@ function fetchHTML(url) {
             });
 
             res.on('end', () => {
-                console.log('Fetched HTML data:', data);
                 resolve(data);
             });
         }).on('error', (err) => {
@@ -24,32 +24,31 @@ function fetchHTML(url) {
 }
 
 // Function to parse HTML and extract latest stories
-function extractLatestStories(html, numStories) {
-    const storyRegex = /<article.*?<a href="([^"]+)".*?title="([^"]+)"/gs;
-    let match;
-    let stories = [];
-    let count = 1;
+function extractLatestStories(html) {
+    try {
+        const $ = cheerio.load(html);
+        const stories = [];
 
-    while ((match = storyRegex.exec(html)) !== null && count < numStories) {
-        stories.push({
-            title: match[2].trim(),
-            link: match[1]
+        $('div.partial.latest-stories ul li').each((index, element) => {
+            const title = $(element).find('h3.latest-stories__item-headline').text().trim();
+            const link = $(element).find('a').attr('href');
+            if (title && link) {
+                stories.push({ title, link });
+            }
         });
-        count++;
+
+        return stories;
+    } catch (error) {
+        throw error;
     }
-
-    console.log('Extracted stories:', stories);
-    return stories;
 }
-
-
 
 // Create HTTP server to serve API
 const server = http.createServer(async (req, res) => {
     if (req.url === '/getTimeStories' && req.method === 'GET') {
         try {
             const html = await fetchHTML(TIME_URL);
-            const stories = extractLatestStories(html, 6);
+            const stories = extractLatestStories(html);
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(stories, null, 2));
